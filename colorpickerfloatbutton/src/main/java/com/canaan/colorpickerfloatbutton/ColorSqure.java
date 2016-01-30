@@ -1,5 +1,6 @@
 package com.canaan.colorpickerfloatbutton;
 
+import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.graphics.Rect;
 import android.view.animation.AccelerateDecelerateInterpolator;
@@ -8,14 +9,23 @@ import android.view.animation.AccelerateDecelerateInterpolator;
  * Created by mac on 16/1/27.
  */
 public class ColorSqure {
+    public interface openAnimStopListener {
+        void openAnimStop(boolean isStop);
+    }
+
+    public interface closeAnimStopListener {
+        void closeAnimStop(boolean isStop);
+    }
+
     private float angle;
     private String color;
     private int width;
     private int index;
 
     private Rect rect = new Rect();
-    private ValueAnimator animator;
-    private ValueAnimator.AnimatorUpdateListener updateListener;
+    private ValueAnimator openAnimator,closeAnimator;
+    private ColorSqure.openAnimStopListener openAnimStopListener;
+    private ColorSqure.closeAnimStopListener closeAnimStopListener;
 
     private int startX = 20,startY = 20;
     private static final int START_DELAY = 70;
@@ -28,19 +38,56 @@ public class ColorSqure {
         this.index = index;
 
         rect.set(startX,startY,startX+width,startY+width);
-        initAnimator();
+        initOpenAnimator();
+        initCloseAnimator();
     }
 
-    private void initAnimator() {
-        animator = ValueAnimator.ofFloat(0,1f);
-        animator.setDuration(ANIM_DURATION);
-        animator.setRepeatMode(ValueAnimator.REVERSE);
-        animator.setInterpolator(new AccelerateDecelerateInterpolator());
+    private void initOpenAnimator() {
+        openAnimator = ValueAnimator.ofFloat(0,1f);
+        openAnimator.setDuration(ANIM_DURATION);
+        openAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+        openAnimator.addListener(new Animator.AnimatorListener() {
+            @Override
+            public void onAnimationStart(Animator animation) {
+
+            }
+
+            @Override
+            public void onAnimationEnd(Animator animation) {
+                if (openAnimStopListener != null && index == 4) {
+                    openAnimStopListener.openAnimStop(true);
+                }
+            }
+
+            @Override
+            public void onAnimationCancel(Animator animation) {
+
+            }
+
+            @Override
+            public void onAnimationRepeat(Animator animation) {
+
+            }
+        });
     }
 
-    public void startAnimator() {
-        animator.setStartDelay(START_DELAY * index);
-        animator.start();
+    public void startOpenAnimator() {
+        openAnimator.setStartDelay(START_DELAY * index);
+        openAnimator.start();
+    }
+
+    private void initCloseAnimator() {
+        closeAnimator = ValueAnimator.ofFloat(1f,0);
+        closeAnimator.setDuration(ANIM_DURATION);
+        closeAnimator.setInterpolator(new AccelerateDecelerateInterpolator());
+    }
+
+    public void startCloseAnimator() {
+        closeAnimator.start();
+    }
+
+    public void reverseOpenAnimator() {
+        openAnimator.reverse();
     }
 
     public float getAngle() {
@@ -59,14 +106,29 @@ public class ColorSqure {
         return width;
     }
 
-
-    public void setUpdateListener(ValueAnimator.AnimatorUpdateListener updateListener) {
-        this.updateListener = updateListener;
-        animator.addUpdateListener(updateListener);
+    public void setOpenAnimStopListener(ColorSqure.openAnimStopListener openAnimStopListener) {
+        this.openAnimStopListener = openAnimStopListener;
     }
 
-    public void setProgress(float progress) {
+    public void setCloseAnimStopListener(ColorSqure.closeAnimStopListener closeAnimStopListener) {
+        this.closeAnimStopListener = closeAnimStopListener;
+    }
+
+    public void setOpenUpdateListener(ValueAnimator.AnimatorUpdateListener updateListener) {
+        openAnimator.addUpdateListener(updateListener);
+    }
+
+    public void setCloseUpdateListener(ValueAnimator.AnimatorUpdateListener updateListener) {
+        closeAnimator.addUpdateListener(updateListener);
+    }
+
+    public void setOpenProgress(float progress) {
         int temperX = (int)(2 * width * progress);
+        this.rect.set(startX + temperX, startY, startX + width + temperX, startY + width);
+    }
+
+    public void setCloseProgress(float progress) {
+        int temperX = (int)(2*width*progress);
         this.rect.set(startX+temperX,startY,startX+width+temperX,startY+width);
     }
 

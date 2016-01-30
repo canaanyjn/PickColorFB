@@ -18,7 +18,9 @@ import java.util.List;
 /**
  * Created by mac on 16/1/26.
  */
-public class ColorPickerFB extends View {
+public class ColorPickerFB extends View implements ColorSqure.openAnimStopListener,
+        ColorSqure.closeAnimStopListener{
+
     private static final String TAG = ColorPickerFB.class.getSimpleName();
 
     private int colorNum;
@@ -33,7 +35,9 @@ public class ColorPickerFB extends View {
     private int width,height;
     private int basicStartX = 20,basicStartY = 20;
     private int basicIncreaseWidth;
-    private boolean isAnimationStart;
+    private boolean isOpenAnimationRunning;
+    private boolean isCloseAnimationRunning;
+    private boolean isActionUp;
     private static int BASIC_ANIM_DURATION = 500;
 
     private Paint colorPaint;
@@ -95,6 +99,8 @@ public class ColorPickerFB extends View {
                 colorSqure = new ColorSqure(gap*i,colors.get(i),colorSqureWidth,i);
             }
             addAnimatorUpdateListener(colorSqure);
+            colorSqure.setOpenAnimStopListener(this);
+            colorSqure.setCloseAnimStopListener(this);
             colorSqures.add(colorSqure);
         }
     }
@@ -113,15 +119,35 @@ public class ColorPickerFB extends View {
     }
 
     private void addAnimatorUpdateListener(final ColorSqure colorSqure) {
-        ValueAnimator.AnimatorUpdateListener animatorUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
+        ValueAnimator.AnimatorUpdateListener openAnimatorUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 float progress = ((Float)animation.getAnimatedValue()).floatValue();
-                colorSqure.setProgress(progress);
+                colorSqure.setOpenProgress(progress);
                 invalidate();
             }
         };
-        colorSqure.setUpdateListener(animatorUpdateListener);
+        colorSqure.setOpenUpdateListener(openAnimatorUpdateListener);
+
+        ValueAnimator.AnimatorUpdateListener closeAnimatorUpdateListener = new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                float progress = ((Float)animation.getAnimatedValue()).floatValue();
+                colorSqure.setCloseProgress(progress);
+                invalidate();
+            }
+        };
+        colorSqure.setCloseUpdateListener(closeAnimatorUpdateListener);
+    }
+
+    @Override
+    public void openAnimStop(boolean isStop) {
+        isOpenAnimationRunning = !isStop;
+    }
+
+    @Override
+    public void closeAnimStop(boolean isStop) {
+        isCloseAnimationRunning = !isStop;
     }
 
     @Override
@@ -135,18 +161,19 @@ public class ColorPickerFB extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        this.setLayerType(LAYER_TYPE_SOFTWARE, null);
+        //this.setLayerType(LAYER_TYPE_SOFTWARE, null);
 
         colorPaint.setMaskFilter(new BlurMaskFilter(10, BlurMaskFilter.Blur.SOLID));
         //draw basic squre
+        colorPaint.setColor(basicSqureColor);
         canvas.drawRect(basicStartX, basicStartY, colorSqureWidth + basicIncreaseWidth + basicStartX,
                 colorSqureWidth + basicIncreaseWidth +basicStartY, colorPaint);
 
         colorPaint.setMaskFilter(new BlurMaskFilter(3, BlurMaskFilter.Blur.SOLID));
-        for (int i = 0;i < colorSqures.size();i++) {
+        for (int i = colorSqures.size() - 1;i >= 0;i--) {
             ColorSqure colorSqure = colorSqures.get(i);
             canvas.save();
-            if (!isAnimationStart) {
+            if (!(isCloseAnimationRunning||isOpenAnimationRunning)) {
                 canvas.rotate(colorSqure.getAngle(), colorSqure.getRect().centerX(), colorSqure.getRect().centerY());
             } else {
                 canvas.rotate(colorSqure.getAngle(),basicStartX + colorSqureWidth/2,basicStartY + colorSqureWidth/2);
@@ -162,12 +189,36 @@ public class ColorPickerFB extends View {
 
         switch (event.getAction()) {
             case MotionEvent.ACTION_DOWN:
-                for (int i = 0;i < colorSqures.size();i++) {
-                    colorSqures.get(i).startAnimator();
+                if (isOpenAnimationRunning) {
+                    for (int i = 0;i < colorSqures.size();i++) {
+                        colorSqures.get(i).reverseOpenAnimator();
+                    }
+                    basicSqureAnimator.reverse();
+                } else {
+                    for (int i = 0;i < colorSqures.size();i++) {
+                        colorSqures.get(i).startOpenAnimator();
+                    }
+                    basicSqureAnimator.start();
+                    isOpenAnimationRunning = true;
+                    isActionUp = false;
                 }
-                basicSqureAnimator.start();
-                isAnimationStart = true;
+
+                break;
+            case MotionEvent.ACTION_UP:
+                if (isOpenAnimationRunning) {
+                    for (int i = 0;i < colorSqures.size();i++) {
+                        colorSqures.get(i).reverseOpenAnimator();
+                    }
+                } else {
+                    isCloseAnimationRunning = true;
+                    for (int i = 0;i <colorSqures.size();i++) {
+                        colorSqures.get(i).startCloseAnimator();
+                    }
+                }
+                basicSqureAnimator.reverse();
+                isActionUp = true;
+                break;
         }
-        return false;
+        return true;
     }
 }
